@@ -36,6 +36,41 @@ int dump_dirent(const struct dirent *current_dirent)
     return result;
 }
 
+int archive_dirent(const struct dirent *current_dirent)
+{
+    int result = 1;
+    const char *d_name = current_dirent->d_name;
+    if (d_name)
+    {
+        if (validate_name(d_name))
+        {
+            struct stat current_stat;
+            if (stat(d_name, &current_stat))
+            {
+                printf("Can't get stat for the file: %s. "
+                       "Igrone it.\n",
+                       d_name);
+                result = !result;
+                goto exit;
+            }
+            if (S_ISREG(current_stat.st_mode))
+            {
+                printf("%s is a regular file\n", d_name);
+                goto exit;
+            }
+            if (S_ISDIR(current_stat.st_mode))
+            {
+                printf("%s is a directory\n", d_name);
+                goto exit;
+            }
+            printf("Unsupported file type of file: name=%s st_mode=0x%h\n", d_name);
+            result = !result;
+        }
+    }
+exit:
+    return result;
+}
+
 int main(int argc, char const *argv[])
 {
     if (!(argc == 2 || argc == 3))
@@ -53,7 +88,7 @@ int main(int argc, char const *argv[])
         return -1;
     }
 
-    dirent_handler *dh = dump_dirent;
+    dirent_handler *dh = archive_dirent;
 
     struct dirent *current_dirent;
 
