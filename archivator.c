@@ -9,7 +9,7 @@ typedef int dirent_handler(const struct dirent *current_dirent);
 d_name == "." or ".." => 0 (false)
 else => 1 (true)
 */
-int ignore_name(const char *d_name)
+int validate_name(const char *d_name)
 {
     return strcmp(".", d_name) != 0 && strcmp("..", d_name) != 0;
 }
@@ -19,7 +19,7 @@ int ignore_name(const char *d_name)
 */
 int dump_dirent(const struct dirent *current_dirent)
 {
-    int result = 0;
+    int result = 1;
     const char *d_name = current_dirent->d_name;
     if (!d_name)
     {
@@ -28,7 +28,7 @@ int dump_dirent(const struct dirent *current_dirent)
     }
     else
     {
-        if (ignore_name(d_name))
+        if (validate_name(d_name))
         {
             printf("%s\n", d_name);
         }
