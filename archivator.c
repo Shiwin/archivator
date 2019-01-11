@@ -6,6 +6,14 @@
 typedef int dirent_handler(const struct dirent *current_dirent);
 
 /*
+d_name == "." or ".." => 0 (false)
+else => 1 (true)
+*/
+int ignore_name(const char *d_name)
+{
+    return strcmp(".", d_name) != 0 && strcmp("..", d_name) != 0;
+}
+/*
     Just print the name of file which is represented
     by the input parameter
 */
@@ -20,8 +28,7 @@ int dump_dirent(const struct dirent *current_dirent)
     }
     else
     {
-        // d_name is not "." or ".."
-        if (strcmp(".", d_name) != 0 && strcmp("..", d_name) != 0)
+        if (ignore_name(d_name))
         {
             printf("%s\n", d_name);
         }
