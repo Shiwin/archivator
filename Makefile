@@ -1,7 +1,6 @@
 CC=$(TOOLCHAIN)gcc
 LINK := $(CC)
-CFLAGS += -std=c99
-CFLAGS += -Wall
+CFLAGS += -std=c99 -Wall -g
 SOURCES := archivator.c
 EXECUTABLE := archivator
 

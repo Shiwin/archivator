@@ -1,5 +1,6 @@
 #include <sys/stat.h>
 #include <dirent.h>
+#include <string.h>
 #include <stdio.h>
 
 typedef int dirent_handler(const struct dirent *current_dirent);
@@ -11,14 +12,19 @@ typedef int dirent_handler(const struct dirent *current_dirent);
 int dump_dirent(const struct dirent *current_dirent)
 {
     int result = 0;
-    if (!(current_dirent->d_name))
+    const char *d_name = current_dirent->d_name;
+    if (!d_name)
     {
         printf("dump_dirent: the name is empty :(\n");
         result = !result;
     }
     else
     {
-        printf("%s\n", current_dirent->d_name);
+        // d_name is not "." or ".."
+        if (strcmp(".", d_name) != 0 && strcmp("..", d_name) != 0)
+        {
+            printf("%s\n", d_name);
+        }
     }
     return result;
 }
