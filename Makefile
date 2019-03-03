@@ -3,8 +3,16 @@ LINK := $(CC)
 CFLAGS += -std=c99 -Wall -g
 SOURCES := archivator.c
 EXECUTABLE := archivator
+TEST_RESULT_FILE := test_result
+TEST_DIR := test_dir
 
-all:  $(SOURCES) $(EXECUTABLE)
+build: $(SOURCES) $(EXECUTABLE)
+
+test: build
+	rm -rf test_result
+	./$(EXECUTABLE) $(TEST_DIR) $(TEST_RESULT_FILE)
+
+all: test
 
 clean:
 	rm -rf $(EXECUTABLE)
