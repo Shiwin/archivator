@@ -10,6 +10,9 @@ build: $(SOURCES) $(EXECUTABLE)
 
 test: build
 	rm -rf test_result
+	echo "=== Test dumping ==="
+	./$(EXECUTABLE) $(TEST_DIR)
+	echo "=== Test archiving ==="
 	./$(EXECUTABLE) $(TEST_DIR) $(TEST_RESULT_FILE)
 
 all: test
