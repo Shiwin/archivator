@@ -36,6 +36,8 @@ struct file_meta_info
 int archive_dirent(const struct dirent *c_d,
                    const int fd, const char *relative_path);
 int archive_folder(const char *dirname, const int archive_fd);
+int archive_folder(const char *dirname, const int archive_fd);
+int dump_folder(const char *dirname);
 
 /*
 d_name == "." or ".." => 0 (false)
@@ -63,9 +65,51 @@ int dump_dirent(const struct dirent *current_dirent, const int fd, const char *r
     {
         if (validate_name(d_name))
         {
-            printf("%s\n", d_name);
+            // construct relative path to file
+            char d_name_path[MAX_FILENAME_LENGTH];
+            strcpy(d_name_path, relative_path);
+            strcat(d_name_path, "/");
+            strcat(d_name_path, d_name);
+
+            struct stat current_stat;
+            int read_fd = open(d_name_path, O_RDONLY);
+
+            if (read_fd < 0)
+            {
+                printf("Can't open file for reading: %s\n", d_name_path);
+                result = !result;
+                goto exit;
+            }
+
+            if (fstat(read_fd, &current_stat) != 0)
+            {
+                printf("Can't get stat for the file: %s. "
+                       "Igrone it.\n",
+                       d_name);
+                result = !result;
+                goto exit;
+            }
+            if (S_ISREG(current_stat.st_mode))
+            {
+                printf("%s\n", d_name_path);
+                goto close_reading_file;
+            }
+            if (S_ISDIR(current_stat.st_mode))
+            {
+                dump_folder(d_name_path);
+                goto exit;
+            }
+            printf("Unsupported file type of file: name=%s\n", d_name);
+            result = !result;
+        close_reading_file:
+            if (close(read_fd))
+            {
+                printf("Closing file error: %s\n", d_name_path);
+            }
+            goto exit;
         }
     }
+exit:
     return result;
 }
 
@@ -122,7 +166,7 @@ int archive_dirent(const struct dirent *c_d,
         {
             // construct relative path to file
             char d_name_path[MAX_FILENAME_LENGTH];
-            strcat(d_name_path, relative_path);
+            strcpy(d_name_path, relative_path);
             strcat(d_name_path, "/");
             strcat(d_name_path, d_name);
 
@@ -146,7 +190,6 @@ int archive_dirent(const struct dirent *c_d,
             }
             if (S_ISREG(current_stat.st_mode))
             {
-                printf("%s is a regular file\n", d_name_path);
                 struct file_meta_info m_i =
                     {
                         .type = REGULAR_FILE,
@@ -189,7 +232,6 @@ int archive_dirent(const struct dirent *c_d,
             }
             if (S_ISDIR(current_stat.st_mode))
             {
-                printf("%s is a directory\n", d_name_path);
                 archive_folder(d_name_path, fd);
                 goto exit;
             }
