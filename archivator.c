@@ -2,6 +2,7 @@
 #include <sys/queue.h>
 #include <dirent.h>
 #include <string.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -17,21 +18,11 @@ typedef enum _file_type
     DIRECTORY
 } file_type;
 
-#pragma pack(push, 1)
-struct archive_meta_info
-{
-    int number_of_dirs;
-    int number_of_regular;
-};
-
 struct file_meta_info
 {
-    const char *path_to_file; // relative path to file
-    const char *filename;
-    file_type type; // regular file or a directory
-    long size;      // only for regular
+    const char path_to_file[MAX_FILENAME_LENGTH]; // relative path to file
+    long size;
 };
-#pragma pack(pop)
 
 int archive_dirent(const struct dirent *c_d,
                    const int fd, const char *relative_path);
@@ -143,6 +134,19 @@ int dump_folder(const char *dirname)
     return dirent_handler_metafunction(dump_dirent, dirname, 0);
 }
 
+int dump_archive(const char *dirname, int fd)
+{
+    size_t file_meta_info_size = sizeof(struct file_meta_info);
+    char *buf = calloc(file_meta_info_size, 1);
+    if (file_meta_info_size == read(fd, buf, file_meta_info_size))
+    {
+        struct file_meta_info *mi = (struct file_meta_info *)buf;
+        printf("%s %l\n", mi->path_to_file, mi->size);
+    }
+    free(buf);
+    return 0;
+}
+
 /*
 Return values:
 -2 - Critical: Error writing to the archive. May be stop program with error status(???)
@@ -192,11 +196,9 @@ int archive_dirent(const struct dirent *c_d,
             {
                 struct file_meta_info m_i =
                     {
-                        .type = REGULAR_FILE,
-                        .filename = d_name,
-                        .path_to_file = relative_path,
                         .size = current_stat.st_size,
                     };
+                strcmp(m_i.path_to_file, d_name_path);
 
                 ssize_t written_bytes = write(fd, &m_i, sizeof(m_i));
                 char temp_buff[TEMP_BUFFER_SIZE];
@@ -251,37 +253,58 @@ exit:
 
 int main(int argc, char const *argv[])
 {
-    if (!(argc == 2 || argc == 3))
+    if (!(argc == 2 || argc == 3 || argc == 4))
     {
         printf("Invalid number of arguments: %d\n"
-               "Usage example: ./archivator <dir> <archive_name>",
+               "Usage example: ./archivator <dir>\n"
+               "               ./archivator <dir> <archive_name>\n"
+               "               ./archivator <archive_name> -C <extract to> \n",
                argc);
         return -1;
     }
 
-    const char *dirname = argv[1];
-    const char *archive_name = argv[2];
-
-    if (argc == 2)
     {
-        dump_folder(dirname);
+        const char *dirname = argv[1];
+        const char *archive_name = argv[2];
+
+        if (argc == 2)
+        {
+            dump_folder(dirname);
+        }
+
+        if (argc == 3)
+        {
+            int fd = open(archive_name,
+                          O_WRONLY | O_CREAT | O_EXCL, ARCHIVE_PERMISSIONS);
+            if (fd < 0)
+            {
+                printf("Can't create archive file: %s\n", strerror(errno));
+                return -1;
+            }
+            archive_folder(dirname, fd);
+            if (close(fd))
+            {
+                printf("Error during writing an archive."
+                       "Can't close an archive file\n");
+            }
+        }
     }
 
-    if (argc == 3)
+    if (argc == 4)
     {
-        int fd = open(archive_name,
-                      O_WRONLY | O_CREAT | O_EXCL, ARCHIVE_PERMISSIONS);
+        const char *dirname = argv[3];
+        const char *archive_name = argv[1];
+
+        int fd = open(archive_name, O_RDONLY, ARCHIVE_PERMISSIONS);
         if (fd < 0)
         {
-            printf("Can't create archive file: %s\n", strerror(errno));
+            printf("Can't open archive file: %s\n", strerror(errno));
             return -1;
         }
-        archive_folder(dirname, fd);
-        if (close(fd))
-        {
-            printf("Error during writing an archive."
-                   "Can't close an archive file\n");
-        }
+
+        dump_archive(dirname, fd);
+
+        close(fd);
     }
 
     return 0;

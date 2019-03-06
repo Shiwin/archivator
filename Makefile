@@ -14,6 +14,8 @@ test: build
 	./$(EXECUTABLE) $(TEST_DIR)
 	echo "=== Test archiving ==="
 	./$(EXECUTABLE) $(TEST_DIR) $(TEST_RESULT_FILE)
+	echo "=== Dump archive ==="
+	./$(EXECUTABLE) $(TEST_RESULT_FILE) -C /tmp/out
 
 all: test
 
