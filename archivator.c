@@ -8,7 +8,7 @@
 #include <unistd.h>
 #include <errno.h>
 
-#define MAX_FILENAME_LENGTH 1024
+#define MAX_FILENAME_LENGTH 128
 #define TEMP_BUFFER_SIZE 8096
 #define ARCHIVE_PERMISSIONS 0777
 typedef int dirent_handler(const struct dirent *current_dirent, const int fd, const char *relative_path);
@@ -21,7 +21,7 @@ typedef enum _file_type
 #pragma pack(push, 1)
 struct file_meta_info
 {
-    const char path_to_file[MAX_FILENAME_LENGTH]; // relative path to file
+    char path_to_file[MAX_FILENAME_LENGTH]; // relative path to file
     long size;
 };
 #pragma pack(pop)
@@ -140,10 +140,11 @@ int dump_archive(const char *dirname, int fd)
 {
     size_t file_meta_info_size = sizeof(struct file_meta_info);
     char buf[file_meta_info_size];
-    if (file_meta_info_size == read(fd, buf, file_meta_info_size))
+    while (file_meta_info_size == read(fd, buf, file_meta_info_size))
     {
         struct file_meta_info *mi = (struct file_meta_info *)buf;
         printf("%s %ld\n", mi->path_to_file, mi->size);
+        lseek(fd, mi->size, SEEK_CUR);
     }
     return 0;
 }
@@ -205,11 +206,19 @@ int archive_dirent(const struct dirent *c_d,
                 char temp_buff[TEMP_BUFFER_SIZE];
                 long total_written_file_bytes = 0;
                 ssize_t read_bytes = read(read_fd, temp_buff, TEMP_BUFFER_SIZE);
+                if (read_bytes < 0)
+                {
+                    printf("Reading file error: %s\n", d_name);
+                    result = !result;
+                    goto close_reading_file;
+                }
                 while (read_bytes > 0)
                 {
                     if (read_bytes < 0)
                     {
                         printf("Reading file error: %s\n", d_name);
+                        result = !result;
+                        goto close_reading_file;
                     }
                     written_bytes = write(fd, temp_buff, read_bytes);
                     if (written_bytes != read_bytes)
@@ -220,11 +229,6 @@ int archive_dirent(const struct dirent *c_d,
                     }
                     total_written_file_bytes += written_bytes;
                     read_bytes = read(read_fd, temp_buff, TEMP_BUFFER_SIZE);
-                }
-                if (read_bytes < 0)
-                {
-                    printf("Reading file error: %s\n", d_name);
-                    result = !result;
                 }
                 if (total_written_file_bytes != m_i.size)
                 {
