@@ -18,11 +18,13 @@ typedef enum _file_type
     DIRECTORY
 } file_type;
 
+#pragma pack(push, 1)
 struct file_meta_info
 {
     const char path_to_file[MAX_FILENAME_LENGTH]; // relative path to file
     long size;
 };
+#pragma pack(pop)
 
 int archive_dirent(const struct dirent *c_d,
                    const int fd, const char *relative_path);
@@ -137,13 +139,12 @@ int dump_folder(const char *dirname)
 int dump_archive(const char *dirname, int fd)
 {
     size_t file_meta_info_size = sizeof(struct file_meta_info);
-    char *buf = calloc(file_meta_info_size, 1);
+    char buf[file_meta_info_size];
     if (file_meta_info_size == read(fd, buf, file_meta_info_size))
     {
         struct file_meta_info *mi = (struct file_meta_info *)buf;
-        printf("%s %l\n", mi->path_to_file, mi->size);
+        printf("%s %ld\n", mi->path_to_file, mi->size);
     }
-    free(buf);
     return 0;
 }
 
@@ -198,7 +199,7 @@ int archive_dirent(const struct dirent *c_d,
                     {
                         .size = current_stat.st_size,
                     };
-                strcmp(m_i.path_to_file, d_name_path);
+                strcpy(m_i.path_to_file, d_name_path);
 
                 ssize_t written_bytes = write(fd, &m_i, sizeof(m_i));
                 char temp_buff[TEMP_BUFFER_SIZE];

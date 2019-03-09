@@ -9,7 +9,7 @@ TEST_DIR := test_dir
 build: $(SOURCES) $(EXECUTABLE)
 
 test: build
-	rm -rf test_result
+	rm -rf $(TEST_RESULT_FILE)
 	echo "=== Test dumping ==="
 	./$(EXECUTABLE) $(TEST_DIR)
 	echo "=== Test archiving ==="
