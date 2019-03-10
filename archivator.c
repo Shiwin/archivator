@@ -11,6 +11,8 @@
 #define MAX_FILENAME_LENGTH 128
 #define TEMP_BUFFER_SIZE 8096
 #define ARCHIVE_PERMISSIONS 0777
+#define MIN(A, B) (((A) < (B)) ? (A) : (B))
+
 typedef int dirent_handler(const struct dirent *current_dirent, const int fd, const char *relative_path);
 typedef enum _file_type
 {
@@ -136,17 +138,67 @@ int dump_folder(const char *dirname)
     return dirent_handler_metafunction(dump_dirent, dirname, 0);
 }
 
-int dump_archive(const char *dirname, int fd)
+int create_unexisted_folders(const char path[])
 {
+    char *iter = path;
+    while (*iter)
+    {
+        if (*iter == '/')
+        {
+            *iter = '\0';
+            mkdir(path, ARCHIVE_PERMISSIONS);
+            *iter = '/';
+        }
+        iter++;
+    }
+    return 0;
+}
+
+int unarchive(const char *dirname, int fd)
+{
+    int result = 0;
     size_t file_meta_info_size = sizeof(struct file_meta_info);
     char buf[file_meta_info_size];
     while (file_meta_info_size == read(fd, buf, file_meta_info_size))
     {
         struct file_meta_info *mi = (struct file_meta_info *)buf;
         printf("%s %ld\n", mi->path_to_file, mi->size);
-        lseek(fd, mi->size, SEEK_CUR);
+        char file_path[MAX_FILENAME_LENGTH];
+        strcpy(file_path, dirname);
+        strcat(file_path, "/");
+        strcat(file_path, mi->path_to_file);
+        create_unexisted_folders(file_path);
+        char buf_file[TEMP_BUFFER_SIZE];
+        int file_fd = open(file_path,
+                           O_WRONLY | O_CREAT | O_EXCL,
+                           ARCHIVE_PERMISSIONS);
+        if (file_fd < 0)
+        {
+            printf("Creating file error: %s\n", file_path);
+            result = -2;
+            goto EXIT;
+        }
+        int need_write = mi->size;
+        int read_bytes = 0;
+        do
+        {
+            read_bytes = read(fd, buf_file,
+                              MIN(TEMP_BUFFER_SIZE, need_write));
+            int write_bytes = write(file_fd, buf_file, read_bytes);
+            if (read_bytes != write_bytes)
+            {
+                printf("Writing file error: %s\n", file_path);
+                result = -1;
+                goto CLOSE_FILE;
+            }
+            need_write -= MIN(TEMP_BUFFER_SIZE, need_write);
+        } while (read_bytes > 0 && need_write > 0);
+    CLOSE_FILE:
+        close(file_fd);
+        // lseek(fd, mi->size, SEEK_CUR);
     }
-    return 0;
+EXIT:
+    return result;
 }
 
 /*
@@ -307,7 +359,7 @@ int main(int argc, char const *argv[])
             return -1;
         }
 
-        dump_archive(dirname, fd);
+        unarchive(dirname, fd);
 
         close(fd);
     }
